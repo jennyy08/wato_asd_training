@@ -30,7 +30,10 @@ MapMemoryNode::MapMemoryNode()
       std::chrono::milliseconds(200),
       std::bind(&MapMemoryNode::updateMap, this));
 
-  global_map_.header.frame_id = "map";
+  // The simulator publishes odometry in sim_world and does not provide a
+  // separate map->sim_world transform. Keep the global map in that frame so
+  // Foxglove can display it alongside the robot and planner path.
+  global_map_.header.frame_id = "sim_world";
   global_map_.info.resolution = kResolution;
   global_map_.info.width = kMapWidth;
   global_map_.info.height = kMapHeight;

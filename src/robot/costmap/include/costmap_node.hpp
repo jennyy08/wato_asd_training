@@ -1,6 +1,9 @@
 #ifndef COSTMAP_NODE_HPP_
 #define COSTMAP_NODE_HPP_
 
+#include <cstdint>
+
+#include "nav_msgs/msg/occupancy_grid.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -17,8 +20,14 @@ class CostmapNode : public rclcpp::Node {
   robot::CostmapCore costmap_;
 
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr string_pub_;
+  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr costmap_pub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_sub_;
   rclcpp::TimerBase::SharedPtr timer_;
+
+  static constexpr float kResolution = 0.1F;
+  static constexpr std::uint32_t kGridWidth = 200;
+  static constexpr std::uint32_t kGridHeight = 200;
+  static constexpr float kInflationRadius = 0.5F;
 };
 
 #endif

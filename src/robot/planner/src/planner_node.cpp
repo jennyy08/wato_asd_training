@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -45,32 +46,68 @@ PlannerNode::PlannerNode()
       "/odom/filtered", 10,
       std::bind(&PlannerNode::odometryCallback, this,
                 std::placeholders::_1));
-  goal_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "/goal_pose", 10,
+  goal_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
+      "/goal_point", 10,
       std::bind(&PlannerNode::goalCallback, this, std::placeholders::_1));
   path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/path", 10);
+  timer_ = this->create_wall_timer(
+      std::chrono::milliseconds(500),
+      std::bind(&PlannerNode::timerCallback, this));
 }
 
 void PlannerNode::mapCallback(
     const nav_msgs::msg::OccupancyGrid::SharedPtr map) {
   latest_map_ = map;
-  planPath();
+  if (state_ == State::WAITING_FOR_ROBOT_TO_REACH_GOAL) {
+    planPath();
+  }
 }
 
 void PlannerNode::odometryCallback(
     const nav_msgs::msg::Odometry::SharedPtr odometry) {
   latest_odometry_ = odometry;
-  planPath();
 }
 
 void PlannerNode::goalCallback(
-    const geometry_msgs::msg::PoseStamped::SharedPtr goal) {
+    const geometry_msgs::msg::PointStamped::SharedPtr goal) {
   latest_goal_ = goal;
+  state_ = State::WAITING_FOR_ROBOT_TO_REACH_GOAL;
+  goal_start_time_ = this->now();
   planPath();
 }
 
+void PlannerNode::timerCallback() {
+  if (state_ != State::WAITING_FOR_ROBOT_TO_REACH_GOAL) {
+    return;
+  }
+
+  if (goalReached()) {
+    RCLCPP_INFO(this->get_logger(), "Goal reached");
+    state_ = State::WAITING_FOR_GOAL;
+    return;
+  }
+
+  if ((this->now() - goal_start_time_).seconds() >= kPlanTimeoutSeconds) {
+    RCLCPP_INFO(this->get_logger(), "Planner timeout; replanning");
+    goal_start_time_ = this->now();
+    planPath();
+  }
+}
+
+bool PlannerNode::goalReached() const {
+  if (!latest_goal_ || !latest_odometry_) {
+    return false;
+  }
+  const double dx = latest_goal_->point.x -
+      latest_odometry_->pose.pose.position.x;
+  const double dy = latest_goal_->point.y -
+      latest_odometry_->pose.pose.position.y;
+  return std::hypot(dx, dy) < kGoalTolerance;
+}
+
 void PlannerNode::planPath() {
-  if (!latest_map_ || !latest_odometry_ || !latest_goal_) {
+  if (state_ != State::WAITING_FOR_ROBOT_TO_REACH_GOAL ||
+      !latest_map_ || !latest_odometry_ || !latest_goal_) {
     return;
   }
 
@@ -79,7 +116,7 @@ void PlannerNode::planPath() {
       latest_odometry_->pose.pose.position.x,
       latest_odometry_->pose.pose.position.y, map);
   const std::size_t goal = worldToIndex(
-      latest_goal_->pose.position.x, latest_goal_->pose.position.y, map);
+      latest_goal_->point.x, latest_goal_->point.y, map);
   if (start == std::numeric_limits<std::size_t>::max() ||
       goal == std::numeric_limits<std::size_t>::max()) {
     RCLCPP_WARN_THROTTLE(

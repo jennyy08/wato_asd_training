@@ -25,9 +25,11 @@ class CostmapNode : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr timer_;
 
   static constexpr float kResolution = 0.1F;
-  static constexpr std::uint32_t kGridWidth = 200;
-  static constexpr std::uint32_t kGridHeight = 200;
-  static constexpr float kInflationRadius = 0.5F;
+  // A larger local grid and inflation radius make the safety buffer visible
+  // and give the planner more room to route around obstacles.
+  static constexpr std::uint32_t kGridWidth = 300;
+  static constexpr std::uint32_t kGridHeight = 300;
+  static constexpr float kInflationRadius = 1.0F;
 };
 
 #endif

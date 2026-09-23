@@ -73,6 +73,9 @@ void PlannerNode::goalCallback(
   latest_goal_ = goal;
   state_ = State::WAITING_FOR_ROBOT_TO_REACH_GOAL;
   goal_start_time_ = this->now();
+  // Do not let the controller continue following a route for an older goal
+  // while this goal is being validated and planned.
+  publishEmptyPath();
   planPath();
 }
 
@@ -83,6 +86,7 @@ void PlannerNode::timerCallback() {
 
   if (goalReached()) {
     RCLCPP_INFO(this->get_logger(), "Goal reached");
+    publishEmptyPath();
     state_ = State::WAITING_FOR_GOAL;
     return;
   }
@@ -119,6 +123,7 @@ void PlannerNode::planPath() {
       latest_goal_->point.x, latest_goal_->point.y, map);
   if (start == std::numeric_limits<std::size_t>::max() ||
       goal == std::numeric_limits<std::size_t>::max()) {
+    publishEmptyPath();
     RCLCPP_WARN_THROTTLE(
         this->get_logger(), *this->get_clock(), 5000,
         "Robot or goal is outside the global map");
@@ -129,6 +134,7 @@ void PlannerNode::planPath() {
     return index < map.data.size() && map.data[index] >= 0 && map.data[index] < 50;
   };
   if (!traversable(start) || !traversable(goal)) {
+    publishEmptyPath();
     RCLCPP_WARN_THROTTLE(
         this->get_logger(), *this->get_clock(), 5000,
         "Robot or goal cell is occupied or unknown");
@@ -188,6 +194,7 @@ void PlannerNode::planPath() {
   }
 
   if (start != goal && parent.find(goal) == parent.end()) {
+    publishEmptyPath();
     RCLCPP_WARN_THROTTLE(
         this->get_logger(), *this->get_clock(), 5000,
         "A* could not find a path to the goal");
@@ -216,6 +223,15 @@ void PlannerNode::planPath() {
     path.poses.push_back(pose);
   }
   path_pub_->publish(path);
+}
+
+void PlannerNode::publishEmptyPath() {
+  nav_msgs::msg::Path empty_path;
+  if (latest_map_) {
+    empty_path.header = latest_map_->header;
+  }
+  empty_path.header.stamp = this->now();
+  path_pub_->publish(empty_path);
 }
 
 int main(int argc, char ** argv)

@@ -43,6 +43,7 @@ MapMemoryNode::MapMemoryNode()
       -static_cast<double>(kMapHeight) * kResolution / 2.0;
   global_map_.info.origin.orientation.w = 1.0;
   global_map_.data.assign(kMapWidth * kMapHeight, -1);
+  last_map_update_time_ = this->now();
 }
 
 void MapMemoryNode::costmapCallback(
@@ -74,7 +75,11 @@ void MapMemoryNode::updateMap() {
   const double robot_y = latest_odometry_->pose.pose.position.y;
   const double distance = std::hypot(
       robot_x - last_update_x_, robot_y - last_update_y_);
-  if (map_initialized_ && distance < kUpdateDistance) {
+  const bool periodic_update_due = map_initialized_ &&
+      (this->now() - last_map_update_time_).seconds() >=
+      kPeriodicUpdateSeconds;
+  if (map_initialized_ && distance < kUpdateDistance &&
+      !periodic_update_due) {
     return;
   }
 
@@ -126,6 +131,7 @@ void MapMemoryNode::updateMap() {
   map_initialized_ = true;
   last_update_x_ = robot_x;
   last_update_y_ = robot_y;
+  last_map_update_time_ = this->now();
 }
 
 int main(int argc, char ** argv)

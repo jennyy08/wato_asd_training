@@ -79,12 +79,20 @@ void ControlNode::controlLoop() {
   const double target_y = -std::sin(yaw) * dx + std::cos(yaw) * dy;
   const double target_distance_squared =
       std::max(target_x * target_x + target_y * target_y, 1e-6);
-  const double curvature = 2.0 * target_y / target_distance_squared;
+  const double heading_error = std::atan2(target_y, target_x);
 
   geometry_msgs::msg::Twist command;
-  command.linear.x = kLinearSpeed;
-  command.angular.z = std::clamp(
-      kLinearSpeed * curvature, -kMaxAngularSpeed, kMaxAngularSpeed);
+  // If the lookahead point is behind the robot, turn in place instead of
+  // driving forward while trying to make an extreme turn.
+  if (std::abs(heading_error) > M_PI / 2.0) {
+    command.angular.z = heading_error > 0.0
+        ? kMaxAngularSpeed : -kMaxAngularSpeed;
+  } else {
+    const double curvature = 2.0 * target_y / target_distance_squared;
+    command.linear.x = kLinearSpeed;
+    command.angular.z = std::clamp(
+        kLinearSpeed * curvature, -kMaxAngularSpeed, kMaxAngularSpeed);
+  }
   cmd_vel_pub_->publish(command);
 }
 

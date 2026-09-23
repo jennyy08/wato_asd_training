@@ -25,6 +25,7 @@ class PlannerNode : public rclcpp::Node {
     void goalCallback(const geometry_msgs::msg::PointStamped::SharedPtr goal);
     void timerCallback();
     bool goalReached() const;
+    void publishEmptyPath();
     void planPath();
 
     robot::PlannerCore planner_;

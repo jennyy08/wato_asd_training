@@ -30,10 +30,10 @@ class ControlNode : public rclcpp::Node {
     nav_msgs::msg::Path::SharedPtr latest_path_;
     nav_msgs::msg::Odometry::SharedPtr latest_odometry_;
 
-    static constexpr double kLookaheadDistance = 0.7;
-    static constexpr double kGoalTolerance = 0.3;
-    static constexpr double kLinearSpeed = 0.5;
-    static constexpr double kMaxAngularSpeed = 1.5;
+    static constexpr double kLookaheadDistance = 1.5;
+    static constexpr double kGoalTolerance = 0.5;
+    static constexpr double kLinearSpeed = 1.0;
+    static constexpr double kMaxAngularSpeed = 3.0;
 };
 
 #endif

@@ -32,11 +32,13 @@ class MapMemoryNode : public rclcpp::Node {
     bool map_initialized_{false};
     double last_update_x_{0.0};
     double last_update_y_{0.0};
+    rclcpp::Time last_map_update_time_;
 
     static constexpr float kResolution = 0.1F;
     static constexpr std::uint32_t kMapWidth = 400;
     static constexpr std::uint32_t kMapHeight = 400;
     static constexpr double kUpdateDistance = 1.5;
+    static constexpr double kPeriodicUpdateSeconds = 1.0;
 };
 
 #endif 
